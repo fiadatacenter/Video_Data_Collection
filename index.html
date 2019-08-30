@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FIA Data Collection App</title>
+    <meta name="viewport" content="width=device-width">
+    
+    <script src="https://www.gstatic.com/firebasejs/6.4.2/firebase.js"></script>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.13/css/all.css" integrity="sha384-DNOHZ68U8hZfKXOrtjWvjxusGo9WQnrNx2sqG0tfsghAvtVlRW3tvkXWZh58N9jp"
+        crossorigin="anonymous">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB"
+        crossorigin="anonymous">
+        <script type="text/javascript" src="adapter-latest.js"></script>
+
+
+
+</head>
+<body>
+    <div class="container">
+             
+        <div class="card">
+            <div class="card-header">
+               <p><script type="text/javascript">document.write("Welcome "+window.location.hash.substring(1))</script></p>
+            </div>
+        <div class="card bg-green text-white mb-3">
+        <div class="card-header">Data Collection Pipeline</div>
+        <div class="card-body">
+        <h4 class="card-title"></h4>
+        <video id="gum" playsinline autoplay muted></video><br>
+        <button id="start" class="btn btn-primary">Start Camera</button>
+        <button class="btn btn-danger" type="button" id="record" disabled>Start Recording</button>
+        <button class="btn btn-danger" type="button" id="download" disabled>Download</button>
+        </div>
+        </div>
+        </div>  
+   
+<script>
+  // Your web app's Firebase configuration
+  var firebaseConfig = {
+    apiKey: "AIzaSyC8XVxD3RpddmgN676Oe2Z-hwqd-CiCMj8",
+    authDomain: "data-collection-15188.firebaseapp.com",
+    databaseURL: "https://data-collection-15188.firebaseio.com",
+    projectId: "data-collection-15188",
+    storageBucket: "data-collection-15188.appspot.com",
+    messagingSenderId: "114217336003",
+    appId: "1:114217336003:web:c906d7a8ecfe74a5"
+  };
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+</script>
+
+<script>
+const mediaSource = new MediaSource();
+mediaSource.addEventListener('sourceopen', handleSourceOpen, false);
+let mediaRecorder;
+let recordedBlobs;
+let sourceBuffer;
+const recordButton = document.querySelector('button#record');
+recordButton.addEventListener('click', () => {
+  if (recordButton.textContent === 'Start Recording'||recordButton.textContent === 'Try Again') {
+    startRecording();
+  } else {
+    stopRecording();
+    recordButton.textContent = 'Try Again';
+    downloadButton.disabled = false;
+}
+}
+);
+function handleSourceOpen(event) {
+  console.log('MediaSource opened');
+  sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp8"');
+  console.log('Source buffer: ', sourceBuffer);
+}
+function handleDataAvailable(event) {
+  if (event.data && event.data.size > 0) {
+    recordedBlobs.push(event.data);
+  }}
+  function startRecording() {
+  recordedBlobs = [];
+  alert("Started");
+  let options = {mimeType: 'video/webm;codecs=vp9'};
+  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+    console.error(`${options.mimeType} is not Supported`);
+   
+    options = {mimeType: 'video/webm;codecs=vp8'};
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      console.error(`${options.mimeType} is not Supported`);
+     
+      options = {mimeType: 'video/webm'};
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        console.error(`${options.mimeType} is not Supported`);
+       
+        options = {mimeType: ''};
+      }
+    }
+  }
+  try {
+    mediaRecorder = new MediaRecorder(window.stream, options);
+  } catch (e) {
+    console.error('Exception while creating MediaRecorder:', e);
+    return;
+  }
+  console.log('Created MediaRecorder', mediaRecorder, 'with options', options);
+  recordButton.textContent = 'Stop Recording';
+  mediaRecorder.onstop = (event) => {
+    console.log('Recorder stopped: ', event);
+  };
+  mediaRecorder.ondataavailable = handleDataAvailable;
+  mediaRecorder.start(10); // collect 10ms of data
+  console.log('MediaRecorder started', mediaRecorder);
+}
+function stopRecording() {
+  mediaRecorder.stop();
+  let blob=new Blob(recordedBlobs,{'type':"video/webm"});
+  console.log(blob);
+  const hashlocation=window.location.hash.substring(1);
+  
+  var storageRef=firebase.storage().ref("/new_upload/"+hashlocation+".webm");
+  var uploadTask=storageRef.put(blob);
+  recordedBlobs=[]
+}
+function handleSuccess(stream) {
+  recordButton.disabled = false;
+  console.log('getUserMedia() got stream:', stream);
+  window.stream = stream;
+  const gumVideo = document.querySelector('video#gum');
+  gumVideo.srcObject = stream;
+}
+const downloadButton = document.querySelector('button#download');
+downloadButton.addEventListener('click', () => {
+  const blob = new Blob(recordedBlobs, {type: 'video/webm'});
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = url;
+  a.download = 'test.webm';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }, 100);
+});
+async function init(constraints) {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    handleSuccess(stream);
+  } catch (e) {
+    console.error('navigator.getUserMedia error:', e);
+    errorMsgElement.innerHTML = `navigator.getUserMedia error:${e.toString()}`;
+  }
+}
+document.querySelector('button#start').addEventListener('click', async () => {
+  
+  const constraints = {
+    audio:false,
+   video:true
+  };
+  console.log('Using media constraints:', constraints);
+  await init(constraints);
+});
+        
+    </script>
+</body>
+</html>
