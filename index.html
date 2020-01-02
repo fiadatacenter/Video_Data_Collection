@@ -64,7 +64,7 @@
         let formdata = new FormData();
         formdata.append("image", file);
         let xhr = new XMLHttpRequest();
-        xhr.open('POST', 'https://facedet.herokuapp.com/image', true);
+        xhr.open('POST', 'http://dsdatacollection.fiaglobal.com:5005/image', true);
         
         xhr.responseType = "arraybuffer";
         xhr.onload = function () {
@@ -88,7 +88,7 @@
             {
 
                 console.error(xhr);
-                alert("Model Offline.Free Quota Exceeded.Restart Model");
+                alert("Model Busy Loading again for next operation");
             }
 
         };
